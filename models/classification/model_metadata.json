@@ -1,0 +1,35 @@
+{
+  "project": "SmartWafer",
+  "target_column": "defect_label",
+  "class_mapping": {
+    "0": "Tidak Defect",
+    "1": "Defect"
+  },
+  "selected_model": "SVM",
+  "feature_columns": [
+    "temperature_c",
+    "pressure_torr",
+    "gas_flow_sccm",
+    "etch_rate_nm_min",
+    "voltage_v",
+    "current_ma",
+    "process_step",
+    "electrical_power_mw"
+  ],
+  "numeric_features": [
+    "temperature_c",
+    "pressure_torr",
+    "gas_flow_sccm",
+    "etch_rate_nm_min",
+    "voltage_v",
+    "current_ma",
+    "electrical_power_mw"
+  ],
+  "categorical_features": [
+    "process_step"
+  ],
+  "random_state": 42,
+  "test_size": 0.2,
+  "sklearn_version": "1.9.0",
+  "warning": "EDA menunjukkan hanya 7 sampel defect dari 5000 baris. Evaluasi sangat tidak pasti; validasi dengan lebih banyak data defect sebelum produksi."
+}

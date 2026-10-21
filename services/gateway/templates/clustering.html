@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartWafer - Klasifikasi Defect</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <!-- Header / Navbar -->
+    <header class="navbar">
+        <div class="container nav-container">
+            <a href="/" class="brand-logo">SmartWafer</a>
+            <nav class="nav-menu">
+                <a href="/" class="nav-link">Beranda</a>
+                <a href="/klasifikasi" class="nav-link active">Klasifikasi</a>
+                <a href="/clustering" class="nav-link">Clustering</a>
+                <a href="/about" class="nav-link">Tentang</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container page-content">
+        <div class="page-header">
+            <h2>Klasifikasi Defect Wafer</h2>
+            <p>Masukkan data sensor proses wafer untuk melakukan prediksi cacat.</p>
+        </div>
+
+        <div class="form-card">
+            <form id="classification-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="temperature_c">Temperature (°C):</label>
+                        <input type="number" id="temperature_c" step="any" value="457.45" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pressure_torr">Pressure (Torr):</label>
+                        <input type="number" id="pressure_torr" step="any" value="747.29" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="gas_flow_sccm">Gas Flow (sccm):</label>
+                        <input type="number" id="gas_flow_sccm" step="any" value="113.22" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="etch_rate_nm_min">Etch Rate (nm/min):</label>
+                        <input type="number" id="etch_rate_nm_min" step="any" value="93.85" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="voltage_v">Voltage (V):</label>
+                        <input type="number" id="voltage_v" step="any" value="5.14" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="current_ma">Current (mA):</label>
+                        <input type="number" id="current_ma" step="any" value="20.34" required>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="process_step">Process Step:</label>
+                        <select id="process_step" required>
+                            <option value="Deposition">Deposition</option>
+                            <option value="Etching">Etching</option>
+                            <option value="Lithography">Lithography</option>
+                            <option value="Cleaning">Cleaning</option>
+                            <option value="Doping">Doping</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-submit">Prediksi Defect</button>
+            </form>
+        </div>
+
+        <!-- Output Result -->
+        <div class="result-card">
+            <h3>Hasil Prediksi</h3>
+            <pre id="result">Hasil klasifikasi akan muncul di sini.</pre>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; SmartWafer - Backend &amp; Frontend</p>
+    </footer>
+
+    <script>
+        document.getElementById("classification-form")
+            .addEventListener("submit", async function (event) {
+                event.preventDefault();
+
+                const result = document.getElementById("result");
+
+                const sensorData = {
+                    temperature_c: Number(document.getElementById("temperature_c").value),
+                    pressure_torr: Number(document.getElementById("pressure_torr").value),
+                    gas_flow_sccm: Number(document.getElementById("gas_flow_sccm").value),
+                    etch_rate_nm_min: Number(document.getElementById("etch_rate_nm_min").value),
+                    voltage_v: Number(document.getElementById("voltage_v").value),
+                    current_ma: Number(document.getElementById("current_ma").value),
+                    process_step: document.getElementById("process_step").value
+                };
+
+                result.textContent = "Memproses klasifikasi...";
+
+                try {
+                    const response = await fetch("/klasifikasi", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(sensorData)
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok || data.error) {
+                        result.textContent = "Klasifikasi gagal:\n" +
+                            JSON.stringify(data, null, 2);
+                        return;
+                    }
+
+                    result.textContent = JSON.stringify(data, null, 2);
+                } catch (error) {
+                    result.textContent = "Tidak dapat menghubungi Gateway.";
+                }
+            });
+    </script>
+</body>
+</html>
