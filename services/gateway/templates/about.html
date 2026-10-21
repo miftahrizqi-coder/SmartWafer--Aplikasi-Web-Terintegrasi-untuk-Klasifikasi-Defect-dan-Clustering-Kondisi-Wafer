@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartWafer - Tentang</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <!-- Header / Navbar -->
+    <header class="navbar">
+        <div class="container nav-container">
+            <a href="/" class="brand-logo">SmartWafer</a>
+            <nav class="nav-menu">
+                <a href="/" class="nav-link">Beranda</a>
+                <a href="/klasifikasi" class="nav-link">Klasifikasi</a>
+                <a href="/clustering" class="nav-link">Clustering</a>
+                <a href="/about" class="nav-link active">Tentang</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container page-content">
+        <div class="page-header">
+            <h2>Tentang Aplikasi</h2>
+            <p>Informasi sistem dan arsitektur platform SmartWafer.</p>
+        </div>
+
+        <!-- Section Info -->
+        <div class="form-card" style="margin-bottom: 20px;">
+            <p>
+                SmartWafer adalah aplikasi web terintegrasi untuk mendukung
+                klasifikasi defect dan clustering kondisi wafer berdasarkan
+                data sensor secara real-time dan efisien.
+            </p>
+        </div>
+
+        <!-- Cards Grid untuk Fitur & Arsitektur -->
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-icon">⚙️</div>
+                <h3>Fitur Utama</h3>
+                <ul style="padding-left: 20px; color: #64748b; font-size: 0.95rem;">
+                    <li>Klasifikasi defect wafer otomatis.</li>
+                    <li>Clustering kondisi wafer berbasis sensor.</li>
+                    <li>Gateway terpusat untuk komunikasi dengan service Machine Learning.</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">🏗️</div>
+                <h3>Arsitektur Aplikasi</h3>
+                <p>
+                    Frontend menyediakan antarmuka pengguna yang responsif, sedangkan Gateway
+                    menangani routing API serta komunikasi antara pengguna dan Microservice Machine Learning.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; SmartWafer - Backend &amp; Frontend</p>
+    </footer>
+
+</body>
+</html>

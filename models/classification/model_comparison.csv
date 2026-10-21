@@ -1,0 +1,6 @@
+Model,Accuracy,Precision_defect,Recall_defect,F1_defect,F1_macro,Average_precision
+SVM,1.0,1.0,1.0,1.0,1.0,1.0
+Random Forest,0.999,0.0,0.0,0.0,0.49974987493746875,0.5
+Extra Trees,0.999,0.0,0.0,0.0,0.49974987493746875,1.0
+Decision Tree,0.999,0.0,0.0,0.0,0.49974987493746875,0.001
+Logistic Regression,0.99,0.0,0.0,0.0,0.49748743718592964,0.1
