@@ -1,4 +1,18 @@
+# Data processing dan machine learning
+numpy
 pandas
-sckit-learn
+scikit-learn
+joblib
+
+# Visualisasi EDA dan training
 matplotlib
 seaborn
+
+# Jupyter Notebook
+jupyter
+ipykernel
+
+# Backend FastAPI
+fastapi
+uvicorn
+pydantic
