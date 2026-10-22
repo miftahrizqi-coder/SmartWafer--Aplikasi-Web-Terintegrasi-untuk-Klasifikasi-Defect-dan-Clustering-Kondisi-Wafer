@@ -6,7 +6,7 @@ from config import CLUSTERING_SERVICE_URL
 
 def cluster_wafer(sensor_data):
     """Mengirim data sensor ke service clustering."""
-    url = f"{CLUSTERING_SERVICE_URL}/cluster"
+    url = f"{CLUSTERING_SERVICE_URL}/predict"
 
     try:
         response = requests.post(
