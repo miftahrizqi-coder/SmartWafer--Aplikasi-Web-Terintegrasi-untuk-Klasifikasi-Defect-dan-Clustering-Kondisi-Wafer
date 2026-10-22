@@ -5,7 +5,21 @@
     "0": "Tidak Defect",
     "1": "Defect"
   },
-  "selected_model": "SVM",
+  "selected_model": "SVM RBF (balanced)",
+  "decision_threshold": -0.34314124611481645,
+  "threshold_rule": "maksimalkan F2 pada skor out-of-fold",
+  "score_type": "decision_function",
+  "cv": "RepeatedStratifiedKFold(5 fold x 10 ulangan)",
+  "cv_metrics": {
+    "AP_mean": 0.382,
+    "AP_std": 0.0644,
+    "ROC_AUC_mean": 0.9774,
+    "ROC_AUC_std": 0.0252,
+    "Recall@1%_mean": 0.8,
+    "Recall@1%_std": 0.0738,
+    "Recall@5%_mean": 0.9429,
+    "Recall@5%_std": 0.0738
+  },
   "feature_columns": [
     "temperature_c",
     "pressure_torr",
@@ -28,8 +42,9 @@
   "categorical_features": [
     "process_step"
   ],
+  "n_defect_samples": 7,
+  "n_samples": 5000,
   "random_state": 42,
-  "test_size": 0.2,
   "sklearn_version": "1.9.1",
-  "warning": "EDA menunjukkan hanya 7 sampel defect dari 5000 baris. Evaluasi sangat tidak pasti; validasi dengan lebih banyak data defect sebelum produksi."
+  "warning": "Hanya 7 sampel defect dari 5000 baris. Performa sangat tidak pasti; validasi dengan lebih banyak data defect sebelum produksi."
 }

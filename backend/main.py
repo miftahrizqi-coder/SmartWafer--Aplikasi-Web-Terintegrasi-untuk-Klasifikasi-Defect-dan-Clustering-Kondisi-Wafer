@@ -1,4 +1,5 @@
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -18,14 +19,34 @@ MODEL_DIR = BASE_DIR / "models" / "classification"
 MODEL_PATH = MODEL_DIR / "best_model.joblib"
 METADATA_PATH = MODEL_DIR / "model_metadata.json"
 
+# Agar `preprocessing.py` di root proyek bisa di-import. File ini juga
+# diperlukan bila model memakai class buatan sendiri (mis. IsolationScorer).
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 # ==================================================
-# 2. MEMUAT MODEL DAN METADATA
+# 2. FEATURE ENGINEERING (harus sama dengan training)
+# ==================================================
+
+try:
+    import preprocessing
+
+    def apply_feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
+        return preprocessing.feature_engineering(df)
+
+except ImportError:
+    # Cadangan: rumus yang sama dengan preprocessing.py
+    def apply_feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
+        df["electrical_power_mw"] = df["voltage_v"] * df["current_ma"]
+        return df.drop(columns=["wafer_id"], errors="ignore")
+
+# ==================================================
+# 3. MEMUAT MODEL DAN METADATA
 # ==================================================
 
 if not MODEL_PATH.exists():
-    raise FileNotFoundError(
-        f"Model tidak ditemukan: {MODEL_PATH}"
-    )
+    raise FileNotFoundError(f"Model tidak ditemukan: {MODEL_PATH}")
 
 model = joblib.load(MODEL_PATH)
 
@@ -49,14 +70,37 @@ FEATURE_COLUMNS = metadata.get(
     ],
 )
 
+# Threshold hasil pemilihan di notebook (maksimalkan F2 pada skor out-of-fold).
+DECISION_THRESHOLD = float(metadata.get("decision_threshold", 0.5))
+
+# Nilai process_step yang dikenal model (diambil dari OneHotEncoder hasil training).
+try:
+    ALLOWED_PROCESS_STEPS = [
+        str(v)
+        for v in model.named_steps["prep"]
+        .named_transformers_["cat"]
+        .named_steps["onehot"]
+        .categories_[0]
+    ]
+except Exception:
+    ALLOWED_PROCESS_STEPS = []  # validasi dilewati bila struktur model berbeda
+
+
+def get_score(m, features: pd.DataFrame) -> float:
+    """Skor risiko defect: probabilitas kelas 1, atau decision_function."""
+    if hasattr(m, "predict_proba"):
+        return float(m.predict_proba(features)[0, 1])
+    return float(m.decision_function(features)[0])
+
+
 # ==================================================
-# 3. INISIALISASI FASTAPI
+# 4. INISIALISASI FASTAPI
 # ==================================================
 
 app = FastAPI(
     title="SmartWafer Classification API",
     description="API untuk klasifikasi defect wafer semikonduktor",
-    version="1.0.0",
+    version="1.1.0",
 )
 
 # Sesuaikan origin dengan alamat frontend saat development.
@@ -72,21 +116,24 @@ app.add_middleware(
 )
 
 # ==================================================
-# 4. SKEMA INPUT
+# 5. SKEMA INPUT
 # ==================================================
+
 
 class WaferInput(BaseModel):
-    temperature_c: float
-    pressure_torr: float
-    gas_flow_sccm: float
-    etch_rate_nm_min: float
-    voltage_v: float
-    current_ma: float
-    process_step: str
+    temperature_c: float = Field(allow_inf_nan=False)
+    pressure_torr: float = Field(gt=0, allow_inf_nan=False)
+    gas_flow_sccm: float = Field(gt=0, allow_inf_nan=False)
+    etch_rate_nm_min: float = Field(gt=0, allow_inf_nan=False)
+    voltage_v: float = Field(gt=0, allow_inf_nan=False)
+    current_ma: float = Field(gt=0, allow_inf_nan=False)
+    process_step: str = Field(min_length=1)
+
 
 # ==================================================
-# 5. ENDPOINT BERANDA
+# 6. ENDPOINT BERANDA
 # ==================================================
+
 
 @app.get("/")
 def home():
@@ -96,9 +143,11 @@ def home():
         "message": "Classification API is ready",
     }
 
+
 # ==================================================
-# 6. ENDPOINT HEALTH CHECK
+# 7. ENDPOINT HEALTH CHECK
 # ==================================================
+
 
 @app.get("/health")
 def health():
@@ -107,88 +156,75 @@ def health():
         "model_loaded": model is not None,
     }
 
+
 # ==================================================
-# 7. INFORMASI MODEL
+# 8. INFORMASI MODEL
 # ==================================================
+
 
 @app.get("/model-info")
 def model_info():
     return {
-        "target": metadata.get(
-            "target_column", "defect_label"
-        ),
-        "selected_model": metadata.get(
-            "selected_model", "unknown"
-        ),
+        "target": metadata.get("target_column", "defect_label"),
+        "selected_model": metadata.get("selected_model", "unknown"),
         "features": FEATURE_COLUMNS,
+        "process_steps": ALLOWED_PROCESS_STEPS,
+        "decision_threshold": DECISION_THRESHOLD,
         "classes": metadata.get(
             "class_mapping",
-            {
-                "0": "Tidak Defect",
-                "1": "Defect",
-            },
+            {"0": "Tidak Defect", "1": "Defect"},
         ),
+        "cv_metrics": metadata.get("cv_metrics", {}),
+        "warning": metadata.get("warning", ""),
     }
 
+
 # ==================================================
-# 8. ENDPOINT PREDIKSI
+# 9. ENDPOINT PREDIKSI
 # ==================================================
+
 
 @app.post("/predict")
 def predict(data: WaferInput):
+    # Validasi nilai kategori agar typo tidak diam-diam diabaikan model.
+    if ALLOWED_PROCESS_STEPS and data.process_step not in ALLOWED_PROCESS_STEPS:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "process_step tidak dikenal",
+                "allowed": ALLOWED_PROCESS_STEPS,
+            },
+        )
+
     try:
-        # Ubah input menjadi satu baris DataFrame.
-        input_data = pd.DataFrame(
-            [data.model_dump()]
+        # Ubah input menjadi satu baris DataFrame lalu terapkan
+        # feature engineering yang sama dengan training.
+        input_data = apply_feature_engineering(
+            pd.DataFrame([data.model_dump()])
         )
-
-        # Feature engineering harus sama dengan training.
-        input_data["electrical_power_mw"] = (
-            input_data["voltage_v"]
-            * input_data["current_ma"]
-        )
-
-        # Pastikan fitur yang dibutuhkan model tersedia.
-        missing_features = [
-            col
-            for col in FEATURE_COLUMNS
-            if col not in input_data.columns
-        ]
-
-        if missing_features:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "message": "Fitur model belum lengkap",
-                    "missing_features": missing_features,
-                },
-            )
 
         # Urutan fitur mengikuti metadata training.
         input_data = input_data[FEATURE_COLUMNS]
 
-        # Prediksi kelas.
-        prediction = int(model.predict(input_data)[0])
+        # Keputusan memakai skor + threshold hasil training,
+        # bukan model.predict() yang memakai threshold 0,5.
+        score = get_score(model, input_data)
+        prediction = int(score >= DECISION_THRESHOLD)
 
         result: dict[str, Any] = {
             "prediction": prediction,
-            "label": (
-                "Defect"
-                if prediction == 1
-                else "Tidak Defect"
-            ),
+            "label": "Defect" if prediction == 1 else "Tidak Defect",
+            "score": score,
+            "threshold": DECISION_THRESHOLD,
         }
 
-        # Tambahkan probabilitas jika model mendukungnya.
+        # Probabilitas hanya ada bila model mendukungnya. Untuk model ber-class
+        # weight / SMOTE nilainya tidak terkalibrasi; tampilkan sebagai skor risiko.
         if hasattr(model, "predict_proba"):
             probabilities = model.predict_proba(input_data)[0]
-            classes = model.named_steps[
-                "classifier"
-            ].classes_
-
             result["probabilities"] = {
                 str(int(cls)): float(prob)
-                for cls, prob in zip(classes, probabilities)
+                for cls, prob in zip(model.classes_, probabilities)
             }
 
         return result

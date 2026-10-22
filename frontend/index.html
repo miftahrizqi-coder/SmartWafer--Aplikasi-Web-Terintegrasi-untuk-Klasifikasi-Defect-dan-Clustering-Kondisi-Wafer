@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmartWafer — Pemeriksaan wafer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="header">
+    <h1>Pemeriksaan wafer</h1>
+    <p>Masukkan parameter proses untuk satu wafer. <span id="modelName"></span></p>
+  </header>
+
+  <main class="grid">
+
+    <form class="card" id="waferForm" novalidate>
+      <h2>Parameter proses</h2>
+
+      <div class="fields">
+        <label class="field">
+          <span>Suhu</span>
+          <div class="input">
+            <input type="number" id="temperature_c" step="any" inputmode="decimal" required>
+            <em>°C</em>
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Tekanan</span>
+          <div class="input">
+            <input type="number" id="pressure_torr" step="any" inputmode="decimal" required>
+            <em>Torr</em>
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Aliran gas</span>
+          <div class="input">
+            <input type="number" id="gas_flow_sccm" step="any" inputmode="decimal" required>
+            <em>sccm</em>
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Laju etsa</span>
+          <div class="input">
+            <input type="number" id="etch_rate_nm_min" step="any" inputmode="decimal" required>
+            <em>nm/menit</em>
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Tegangan</span>
+          <div class="input">
+            <input type="number" id="voltage_v" step="any" inputmode="decimal" required>
+            <em>V</em>
+          </div>
+        </label>
+
+        <label class="field">
+          <span>Arus</span>
+          <div class="input">
+            <input type="number" id="current_ma" step="any" inputmode="decimal" required>
+            <em>mA</em>
+          </div>
+        </label>
+
+        <label class="field wide">
+          <span>Tahap proses</span>
+          <select id="processStepSelect" hidden></select>
+          <input type="text" id="processStepText" class="plain" placeholder="mis. Deposition">
+        </label>
+      </div>
+
+      <p class="power">Daya listrik (tegangan × arus): <strong id="power">–</strong></p>
+
+      <div class="actions">
+        <button type="submit" class="primary" id="submitBtn" disabled>Periksa wafer</button>
+        <button type="button" class="ghost" id="exampleBtn">Isi contoh</button>
+        <button type="button" class="ghost" id="resetBtn">Kosongkan</button>
+      </div>
+
+      <p class="error" id="error" role="alert" hidden></p>
+    </form>
+
+    <section class="card" aria-live="polite">
+      <h2>Hasil</h2>
+
+      <p class="empty" id="emptyMsg">
+        Isi semua parameter lalu pilih “Periksa wafer”. Hasil dan posisi skor terhadap
+        threshold akan muncul di sini.
+      </p>
+
+      <div id="result" hidden>
+        <p class="verdict" id="verdict"></p>
+
+        <div class="gauge">
+          <div class="gauge-track" id="gaugeTrack" role="img">
+            <div class="gauge-zone gauge-ok"></div>
+            <div class="gauge-zone gauge-bad"></div>
+            <span class="gauge-threshold"></span>
+            <span class="gauge-marker" id="gaugeMarker"></span>
+          </div>
+          <div class="gauge-labels">
+            <span>Tidak Defect</span>
+            <span>Threshold</span>
+            <span>Defect</span>
+          </div>
+        </div>
+
+        <dl class="stats">
+          <div><dt>Skor</dt><dd id="scoreVal"></dd></div>
+          <div><dt>Threshold</dt><dd id="thresholdVal"></dd></div>
+          <div><dt>Selisih</dt><dd id="marginVal"></dd></div>
+        </dl>
+
+        <p class="note">
+          Wafer dinilai Defect bila skor mencapai atau melewati threshold. Skor bukan persentase;
+          makin besar selisihnya, makin jauh wafer dari batas keputusan.
+        </p>
+      </div>
+
+      <p class="warning" id="warning" hidden></p>
+    </section>
+
+  </main>
+
+  <!-- HTML dan CSS tidak bisa memanggil API; skrip kecil ini yang mengirim data ke FastAPI. -->
+  <script>
+    const API_URL = "http://127.0.0.1:8000";
+
+    const NUM_IDS = [
+      "temperature_c", "pressure_torr", "gas_flow_sccm",
+      "etch_rate_nm_min", "voltage_v", "current_ma",
+    ];
+    const EXAMPLE = {
+      temperature_c: 450, pressure_torr: 760, gas_flow_sccm: 120,
+      etch_rate_nm_min: 95, voltage_v: 5, current_ma: 20,
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const form = $("waferForm");
+    const stepSelect = $("processStepSelect");
+    const stepText = $("processStepText");
+
+    function getStep() {
+      return (stepSelect.hidden ? stepText.value : stepSelect.value).trim();
+    }
+
+    function isComplete() {
+      return NUM_IDS.every((id) => $(id).value !== "" && Number.isFinite(Number($(id).value)))
+        && getStep() !== "";
+    }
+
+    function refresh() {
+      const v = parseFloat($("voltage_v").value);
+      const i = parseFloat($("current_ma").value);
+      $("power").textContent = Number.isFinite(v) && Number.isFinite(i)
+        ? (v * i).toFixed(2) + " mW" : "–";
+      $("submitBtn").disabled = !isComplete();
+    }
+
+    function showError(msg) {
+      $("error").textContent = msg;
+      $("error").hidden = !msg;
+    }
+
+    // Mengubah error FastAPI (string, objek, atau daftar error Pydantic) menjadi teks.
+    function describeError(detail) {
+      if (!detail) return "Terjadi kesalahan yang tidak diketahui.";
+      if (typeof detail === "string") return detail;
+      if (Array.isArray(detail)) {
+        return detail.map((d) => ((d.loc || []).slice(1).join(".") || "input") + ": " + d.msg).join("; ");
+      }
+      if (detail.message) {
+        return detail.message + "." + (detail.allowed ? " Pilihan: " + detail.allowed.join(", ") + "." : "");
+      }
+      return JSON.stringify(detail);
+    }
+
+    function renderResult(r) {
+      const isDefect = r.prediction === 1;
+      const margin = r.score - r.threshold;
+
+      $("verdict").textContent = r.label;
+      $("verdict").className = "verdict " + (isDefect ? "is-defect" : "is-ok");
+
+      // Skala simetris di sekitar threshold agar posisi penanda bermakna.
+      const half = Math.max(0.5, Math.abs(r.threshold), Math.abs(margin) * 1.25);
+      const pos = Math.min(97, Math.max(3, ((margin + half) / (2 * half)) * 100));
+      $("gaugeMarker").style.left = pos + "%";
+      $("gaugeTrack").setAttribute(
+        "aria-label",
+        "Skor berada " + Math.abs(margin).toFixed(3) + (margin >= 0 ? " di sisi Defect" : " di sisi Tidak Defect") + " dari threshold"
+      );
+
+      $("scoreVal").textContent = r.score.toFixed(3);
+      $("thresholdVal").textContent = r.threshold.toFixed(3);
+      $("marginVal").textContent = (margin >= 0 ? "+" : "") + margin.toFixed(3);
+
+      $("emptyMsg").hidden = true;
+      $("result").hidden = false;
+    }
+
+    function clearResult() {
+      $("result").hidden = true;
+      $("emptyMsg").hidden = false;
+    }
+
+    // Ambil info model: daftar process_step, nama model, peringatan data.
+    fetch(API_URL + "/model-info")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
+      .then((info) => {
+        if (info.process_steps && info.process_steps.length) {
+          info.process_steps.forEach((s) => {
+            const opt = document.createElement("option");
+            opt.value = s;
+            opt.textContent = s;
+            stepSelect.appendChild(opt);
+          });
+          stepSelect.hidden = false;
+          stepText.hidden = true;
+        }
+        if (info.selected_model && info.selected_model !== "unknown") {
+          $("modelName").textContent = "Model: " + info.selected_model + ".";
+        }
+        if (info.warning) {
+          $("warning").textContent = info.warning;
+          $("warning").hidden = false;
+        }
+        refresh();
+      })
+      .catch(() => {
+        showError("Tidak dapat terhubung ke API di " + API_URL + ". Pastikan backend berjalan.");
+      });
+
+    form.addEventListener("input", refresh);
+    stepSelect.addEventListener("change", refresh);
+
+    $("exampleBtn").addEventListener("click", () => {
+      NUM_IDS.forEach((id) => { $(id).value = EXAMPLE[id]; });
+      showError("");
+      clearResult();
+      refresh();
+    });
+
+    $("resetBtn").addEventListener("click", () => {
+      form.reset();
+      showError("");
+      clearResult();
+      refresh();
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = $("submitBtn");
+      btn.disabled = true;
+      btn.textContent = "Memeriksa…";
+      showError("");
+      clearResult();
+
+      const payload = { process_step: getStep() };
+      NUM_IDS.forEach((id) => { payload[id] = Number($(id).value); });
+
+      try {
+        const res = await fetch(API_URL + "/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(describeError(data && data.detail));
+        renderResult(data);
+      } catch (err) {
+        showError(err.message || "Prediksi gagal.");
+      } finally {
+        btn.textContent = "Periksa wafer";
+        refresh();
+      }
+    });
+
+    refresh();
+  </script>
+</body>
+</html>
