@@ -1,0 +1,5 @@
+algoritma,konfigurasi,jumlah_fitur,n_clusters,noise_pct,silhouette,davies_bouldin,calinski_harabasz,stabilitas_ari_mean,dapat_prediksi_data_baru,anomali_ditandai,defect_tertangkap,defect_total,lift,kandidat,catatan,terpilih,alasan
+K-Means,"K=3, n_init=10, random_state=42",6,3,0.0,0.1049,2.2876,588.1885,0.3497,True,251,5,7,14.23,True,Model utama; anomali = jarak ke centroid > P95,True,TERPILIH: lolos semua syarat & silhouette tertinggi
+Agglomerative,"K=3, linkage=ward",6,3,0.0,0.0479,2.7196,334.3307,,False,251,4,7,11.38,True,Deterministik; tidak punya predict() untuk data baru,False,Gugur: tidak bisa memprediksi data baru
+DBSCAN,"eps=1.340 (knee), min_samples=7",6,1,3.98,,,,,False,199,5,7,17.95,True,Anomali = noise; tidak punya predict() untuk data baru,False,Gugur: tidak bisa memprediksi data baru
+K-Means,"K=3, +process_step LabelEncoder",7,3,0.0,0.0972,2.4671,521.8684,0.7709,True,251,4,7,11.38,False,Eksperimen fitur; cluster mengikuti kode abjad process_step (artefak encoding),False,Bukan kandidat (eksperimen fitur)

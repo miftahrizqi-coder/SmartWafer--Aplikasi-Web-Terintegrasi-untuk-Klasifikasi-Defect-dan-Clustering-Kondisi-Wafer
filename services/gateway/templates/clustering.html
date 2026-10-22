@@ -3,113 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartWafer - Klasifikasi Defect</title>
+    <title>SmartWafer - Clustering Kondisi Wafer</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-
-    <!-- Header / Navbar -->
     <header class="navbar">
         <div class="container nav-container">
             <a href="/" class="brand-logo">SmartWafer</a>
             <nav class="nav-menu">
                 <a href="/" class="nav-link">Beranda</a>
-                <a href="/klasifikasi" class="nav-link active">Klasifikasi</a>
-                <a href="/clustering" class="nav-link">Clustering</a>
+                <a href="/klasifikasi" class="nav-link">Klasifikasi</a>
+                <a href="/clustering" class="nav-link active">Clustering</a>
                 <a href="/about" class="nav-link">Tentang</a>
             </nav>
         </div>
     </header>
 
-    <!-- Main Content -->
     <main class="container page-content">
         <div class="page-header">
-            <h2>Klasifikasi Defect Wafer</h2>
-            <p>Masukkan data sensor proses wafer untuk melakukan prediksi cacat.</p>
+            <h2>Clustering Kondisi Wafer</h2>
+            <p>Masukkan enam data sensor untuk mengelompokkan kondisi proses wafer dan mendeteksi anomali.</p>
         </div>
 
         <div class="form-card">
-            <form id="classification-form">
+            <form id="clustering-form">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="temperature_c">Temperature (°C):</label>
-                        <input type="number" id="temperature_c" step="any" value="457.45" required>
+                        <label for="temperature_c">Suhu (°C)</label>
+                        <input type="number" id="temperature_c" step="any" value="80" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="pressure_torr">Pressure (Torr):</label>
-                        <input type="number" id="pressure_torr" step="any" value="747.29" required>
+                        <label for="pressure_torr">Tekanan (Torr)</label>
+                        <input type="number" id="pressure_torr" step="any" value="50" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="gas_flow_sccm">Gas Flow (sccm):</label>
-                        <input type="number" id="gas_flow_sccm" step="any" value="113.22" required>
+                        <label for="gas_flow_sccm">Aliran Gas (sccm)</label>
+                        <input type="number" id="gas_flow_sccm" step="any" value="100" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="etch_rate_nm_min">Etch Rate (nm/min):</label>
-                        <input type="number" id="etch_rate_nm_min" step="any" value="93.85" required>
+                        <label for="etch_rate_nm_min">Etch Rate (nm/min)</label>
+                        <input type="number" id="etch_rate_nm_min" step="any" value="150" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="voltage_v">Voltage (V):</label>
-                        <input type="number" id="voltage_v" step="any" value="5.14" required>
+                        <label for="voltage_v">Tegangan (V)</label>
+                        <input type="number" id="voltage_v" step="any" value="5" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="current_ma">Current (mA):</label>
-                        <input type="number" id="current_ma" step="any" value="20.34" required>
-                    </div>
-
-                    <div class="form-group full-width">
-                        <label for="process_step">Process Step:</label>
-                        <select id="process_step" required>
-                            <option value="Deposition">Deposition</option>
-                            <option value="Etching">Etching</option>
-                            <option value="Lithography">Lithography</option>
-                            <option value="Cleaning">Cleaning</option>
-                            <option value="Doping">Doping</option>
-                        </select>
+                        <label for="current_ma">Arus (mA)</label>
+                        <input type="number" id="current_ma" step="any" value="20" required>
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-submit">Prediksi Defect</button>
+                <button type="submit" class="btn btn-primary btn-submit">
+                    Analisis Kondisi Wafer
+                </button>
             </form>
         </div>
 
-        <!-- Output Result -->
         <div class="result-card">
-            <h3>Hasil Prediksi</h3>
-            <pre id="result">Hasil klasifikasi akan muncul di sini.</pre>
+            <h3>Hasil Clustering</h3>
+            <pre id="result">Hasil analisis akan muncul di sini.</pre>
         </div>
     </main>
 
-    <!-- Footer -->
     <footer class="footer">
         <p>&copy; SmartWafer - Backend &amp; Frontend</p>
     </footer>
 
     <script>
-        document.getElementById("classification-form")
+        document.getElementById("clustering-form")
             .addEventListener("submit", async function (event) {
                 event.preventDefault();
 
+                const form = event.currentTarget;
                 const result = document.getElementById("result");
 
-                const sensorData = {
-                    temperature_c: Number(document.getElementById("temperature_c").value),
-                    pressure_torr: Number(document.getElementById("pressure_torr").value),
-                    gas_flow_sccm: Number(document.getElementById("gas_flow_sccm").value),
-                    etch_rate_nm_min: Number(document.getElementById("etch_rate_nm_min").value),
-                    voltage_v: Number(document.getElementById("voltage_v").value),
-                    current_ma: Number(document.getElementById("current_ma").value),
-                    process_step: document.getElementById("process_step").value
-                };
+                const fields = [
+                    "temperature_c",
+                    "pressure_torr",
+                    "gas_flow_sccm",
+                    "etch_rate_nm_min",
+                    "voltage_v",
+                    "current_ma"
+                ];
 
-                result.textContent = "Memproses klasifikasi...";
+                const sensorData = {};
+
+                // Validasi semua input sebelum mengirim permintaan.
+                for (const field of fields) {
+                    const input = document.getElementById(field);
+                    const rawValue = input.value.trim();
+
+                    if (rawValue === "") {
+                        result.textContent =
+                            "Input tidak valid. Semua kolom sensor wajib diisi.";
+                        input.focus();
+                        return;
+                    }
+
+                    const value = Number(rawValue);
+
+                    if (!Number.isFinite(value)) {
+                        result.textContent =
+                            "Input tidak valid. Semua kolom sensor harus berupa angka yang valid.";
+                        input.focus();
+                        return;
+                    }
+
+                    sensorData[field] = value;
+                }
+
+                // Validasi HTML, termasuk required dan tipe number.
+                if (!form.checkValidity()) {
+                    form.reportValidity();
+                    return;
+                }
+
+                result.textContent = "Sedang menganalisis kondisi wafer...";
 
                 try {
-                    const response = await fetch("/klasifikasi", {
+                    const response = await fetch("/clustering", {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json"
@@ -120,14 +138,42 @@
                     const data = await response.json();
 
                     if (!response.ok || data.error) {
-                        result.textContent = "Klasifikasi gagal:\n" +
+                        result.textContent = "Analisis gagal:\n" +
                             JSON.stringify(data, null, 2);
                         return;
                     }
 
-                    result.textContent = JSON.stringify(data, null, 2);
+                    if (
+                        typeof data.pca !== "object" ||
+                        data.pca === null ||
+                        data.cluster_id === undefined ||
+                        data.cluster_name === undefined ||
+                        data.distance_to_centroid === undefined ||
+                        data.distance_threshold === undefined ||
+                        data.is_anomaly === undefined
+                    ) {
+                        result.textContent =
+                            "Analisis gagal: format hasil dari server tidak lengkap.";
+                        return;
+                    }
+
+                    result.textContent =
+                        "Hasil Analisis Kondisi Wafer\n\n" +
+                        "Cluster: " + data.cluster_id + "\n" +
+                        "Nama cluster: " + data.cluster_name + "\n" +
+                        "Jarak ke centroid: " + data.distance_to_centroid + "\n" +
+                        "Ambang anomali: " + data.distance_threshold + "\n" +
+                        "Status anomali: " +
+                        (data.is_anomaly
+                            ? "Terdeteksi anomali"
+                            : "Tidak terdeteksi anomali") +
+                        "\n\nKoordinat PCA\n" +
+                        "X: " + data.pca.x + "\n" +
+                        "Y: " + data.pca.y;
+
                 } catch (error) {
-                    result.textContent = "Tidak dapat menghubungi Gateway.";
+                    result.textContent =
+                        "Tidak dapat menghubungi Gateway. Pastikan service berjalan.";
                 }
             });
     </script>
